@@ -4,12 +4,16 @@
   <meta charset="UTF-8" />
   <title>🧪 Bhai ka JSON Editor</title>
 
+  <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- JSONEditor -->
   <link href="https://cdn.jsdelivr.net/npm/jsoneditor@10.2.0/dist/jsoneditor.min.css" rel="stylesheet" />
+  <!-- Tabulator -->
+  <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet" />
 
   <style>
     #leftEditor, #rightEditor {
-      height: 70vh;
+      height: 60vh;
     }
 
     .editor-box {
@@ -20,6 +24,7 @@
       height: 100%;
       display: flex;
       flex-direction: column;
+      position: relative;
     }
 
     .panel-buttons {
@@ -31,25 +36,29 @@
       height: 100%;
     }
 
-    .fullscreen {
-      position: fixed !important;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      z-index: 9999;
-      background: white;
-      padding: 20px;
-      overflow: auto;
-    }
-
-    ins { background: #e6ffe6; text-decoration: none; }
-    del { background: #ffe6e6; text-decoration: line-through; }
-
     .toolbar {
       display: flex;
       gap: 10px;
       margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    #leftTableContainer, #rightTableContainer {
+      max-height: 300px;
+      overflow: auto;
+      margin-top: 10px;
+    }
+
+    .fullscreen {
+      position: fixed !important;
+      top: 0;
+      left: 0;
+      z-index: 9999;
+      width: 100vw !important;
+      height: 100vh !important;
+      background: white;
+      padding: 20px;
+      overflow: auto;
     }
   </style>
 </head>
@@ -57,30 +66,31 @@
 
 <div class="container-fluid py-4">
   <h3>📌 Bhai ka JSON Editor</h3>
-
   <div class="row g-3 mt-2">
+
     <!-- LEFT EDITOR -->
     <div class="col-md-5">
       <div class="editor-box" id="leftBox">
         <div class="toolbar">
-          <button onclick="clearEditor(leftEditor)" class="btn btn-sm btn-outline-secondary">🆕</button>
+          <button onclick="clearEditor(leftEditor, 'leftTableContainer')" class="btn btn-sm btn-outline-secondary">🆕</button>
           <input type="file" onchange="loadFile(event, leftEditor)" class="d-none" id="openLeftFile" />
           <button onclick="document.getElementById('openLeftFile').click()" class="btn btn-sm btn-outline-secondary">📂</button>
           <button onclick="saveToFile(leftEditor)" class="btn btn-sm btn-outline-secondary">💾</button>
-          <button onclick="exportToNewTab(leftEditor)" class="btn btn-sm btn-outline-secondary">↗️</button>
           <button onclick="toggleFullscreen('leftBox')" class="btn btn-sm btn-outline-secondary">🔳</button>
-          <button onclick="clearEditor(leftEditor)" class="btn btn-sm btn-outline-danger">🧹</button>
         </div>
         <div id="leftEditor" class="flex-grow-1"></div>
+        <div id="leftTableContainer"></div>
       </div>
     </div>
 
     <!-- CENTER BUTTONS -->
     <div class="col-md-2 d-flex justify-content-center align-items-center">
       <div class="panel-buttons">
-        <button id="copyLeftToRight" class="btn btn-outline-secondary">➡️</button>
-        <button id="copyRightToLeft" class="btn btn-outline-secondary">⬅️</button>
-        <button id="compareBtn" class="btn btn-warning">🔍 Compare</button>
+        <button onclick="copyEditor(leftEditor, rightEditor)" class="btn btn-outline-secondary">➡️ Copy ➡️</button>
+        <button onclick="copyEditor(rightEditor, leftEditor)" class="btn btn-outline-secondary">⬅️ Copy ⬅️</button>
+        <button onclick="compareJSONs()" class="btn btn-warning">🔍 Compare</button>
+        <button onclick="convertLeftToTabulator()" class="btn btn-dark">📊 Left → Table</button>
+        <button onclick="convertRightToTabulator()" class="btn btn-dark">📊 Right → Table</button>
       </div>
     </div>
 
@@ -88,24 +98,24 @@
     <div class="col-md-5">
       <div class="editor-box" id="rightBox">
         <div class="toolbar">
-          <button onclick="clearEditor(rightEditor)" class="btn btn-sm btn-outline-secondary">🆕</button>
+          <button onclick="clearEditor(rightEditor, 'rightTableContainer')" class="btn btn-sm btn-outline-secondary">🆕</button>
           <input type="file" onchange="loadFile(event, rightEditor)" class="d-none" id="openRightFile" />
           <button onclick="document.getElementById('openRightFile').click()" class="btn btn-sm btn-outline-secondary">📂</button>
           <button onclick="saveToFile(rightEditor)" class="btn btn-sm btn-outline-secondary">💾</button>
-          <button onclick="exportToNewTab(rightEditor)" class="btn btn-sm btn-outline-secondary">↗️</button>
           <button onclick="toggleFullscreen('rightBox')" class="btn btn-sm btn-outline-secondary">🔳</button>
-          <button onclick="clearEditor(rightEditor)" class="btn btn-sm btn-outline-danger">🧹</button>
         </div>
         <div id="rightEditor" class="flex-grow-1"></div>
+        <div id="rightTableContainer"></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- JS Scripts -->
+<!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsoneditor@10.2.0/dist/jsoneditor.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsondiffpatch@0.4.2/dist/jsondiffpatch.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
 <script src="https://nand0172ex.github.io/json-editor/app.js"></script>
 </body>
 </html>
