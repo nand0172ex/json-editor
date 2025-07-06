@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>🍽️ The JSON Thali – Where JSON Meets Masala</title>
+
+  <!-- CSS Libraries -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/jsoneditor@10.2.0/dist/jsoneditor.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet" />
+  <style>
+    .editor-box {
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 10px;
+      background: #fff;
+    }
+
+    .json-container {
+      height: 300px;
+      margin-bottom: 10px;
+    }
+
+    .table-container,
+    .tree-container {
+      max-height: 300px;
+      overflow: auto;
+      margin-top: 10px;
+    }
+
+    .fullscreen {
+      position: fixed !important;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 9999;
+      background: #fff;
+      overflow: auto;
+      padding: 20px;
+    }
+  </style>
+</head>
+
+<body class="bg-light">
+
+  <div class="container-fluid py-4">
+    <h3>🍽️ The JSON Thali <small class="text-muted">– Where JSON Meets Masala</small></h3>
+
+    <!-- Buttons Row -->
+    <div class="text-center mb-3">
+      <button class="btn btn-outline-primary btn-sm mx-1" onclick="copyLeftToRight()">➡️ Copy Left ➜ Right</button>
+      <button class="btn btn-outline-primary btn-sm mx-1" onclick="copyRightToLeft()">⬅️ Copy Right ➜ Left</button>
+      <button class="btn btn-outline-warning btn-sm mx-1" onclick="compareJson()">🔍 Compare JSONs</button>
+    </div>
+
+    <div class="row g-3 mt-1">
+
+      <!-- Left JSON Panel -->
+      <div class="col-md-6">
+        <div class="editor-box">
+          <div class="d-flex justify-content-between mb-2">
+            <strong>Left JSON Editor</strong>
+            <div>
+              <button onclick="clearEditor(leftEditor, 'left')" title="Clear" class="btn btn-sm btn-danger">🧹</button>
+              <button onclick="convertToTable(leftEditor, 'leftTable')" title="Table"
+                class="btn btn-sm btn-success">📊</button>
+              <button onclick="convertToTreeView(leftEditor, 'leftTree')" title="Hierarchy"
+                class="btn btn-sm btn-warning">🌳
+              </button>
+              <button onclick="toggleFullscreen('leftEditor')" title="Full Screen"
+                class="btn btn-sm btn-secondary">🔳</button>
+            </div>
+          </div>
+          <div id="leftEditor" class="json-container"></div>
+          <div id="leftTable" class="table-container"></div>
+          <div id="leftTree" class="tree-container"></div>
+        </div>
+      </div>
+
+      <!-- Right JSON Panel -->
+      <div class="col-md-6">
+        <div class="editor-box">
+          <div class="d-flex justify-content-between mb-2">
+            <strong>Right JSON Editor</strong>
+            <div>
+              <button onclick="clearEditor(rightEditor, 'right')" title="Clear"
+                class="btn btn-sm btn-danger">🧹</button>
+              <button onclick="convertToTable(rightEditor, 'rightTable')" title="Table"
+                class="btn btn-sm btn-success">📊
+              </button>
+              <button onclick="convertToTreeView(rightEditor, 'rightTree')" title="Hierarchy"
+                class="btn btn-sm btn-warning">🌳
+              </button>
+              <button onclick="toggleFullscreen('rightEditor')" title="Full Screen"
+                class="btn btn-sm btn-secondary">🔳</button>
+            </div>
+          </div>
+          <div id="rightEditor" class="json-container"></div>
+          <div id="rightTable" class="table-container"></div>
+          <div id="rightTree" class="tree-container"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- JS Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsoneditor@10.2.0/dist/jsoneditor.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsondiffpatch@0.4.2/dist/jsondiffpatch.umd.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>
