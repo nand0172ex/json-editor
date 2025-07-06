@@ -9,7 +9,8 @@ const rightEditor = new JSONEditor(document.getElementById("rightEditor"), {
 
 function clearEditor(editor, side) {
   editor.set({});
-  document.getElementById(`${side}Table`).innerHTML = "";
+  document.getElementById(`${side}Table`).style.display = "none";
+  document.getElementById(`${side}Tree`).style.display = "none";
   document.getElementById(`${side}Tree`).innerHTML = "";
 }
 
@@ -23,6 +24,10 @@ function convertToTable(editor, containerId) {
     } else if (typeof jsonData === 'object') {
       dataArray = [flattenObject(jsonData)];
     }
+
+    const container = document.getElementById(containerId);
+    container.style.display = "block";
+    container.innerHTML = "";
 
     new Tabulator(`#${containerId}`, {
       data: dataArray,
@@ -50,38 +55,47 @@ function flattenObject(obj, prefix = '') {
   }, {});
 }
 
-function convertToTreeView(editor, containerId) {
+function convertToTreeView(editor, side) {
   try {
     const jsonData = editor.get();
-    const container = document.getElementById(containerId);
+    const container = document.getElementById(`${side}Tree`);
     container.innerHTML = "";
-    const ul = document.createElement("ul");
-    buildTree(jsonData, ul);
-    container.appendChild(ul);
+    container.style.display = "block";
+
+    const nodeStructure = jsonToTreant(jsonData);
+
+    new Treant({
+      chart: {
+        container: `#${side}Tree`,
+        scrollbar: "fancy",
+        node: { collapsable: true }
+      },
+      nodeStructure: nodeStructure
+    });
   } catch (err) {
     alert("Tree conversion failed: " + err.message);
   }
 }
 
-function buildTree(data, parent) {
-  if (typeof data !== 'object' || data === null) {
-    const li = document.createElement('li');
-    li.textContent = String(data);
-    parent.appendChild(li);
-    return;
+function jsonToTreant(data, label = "Root") {
+  const node = { text: { name: label } };
+
+  if (typeof data === "object" && data !== null) {
+    node.children = [];
+
+    for (let key in data) {
+      const child = jsonToTreant(data[key], key);
+      node.children.push(child);
+    }
+
+    if (node.children.length === 0) delete node.children;
+  } else {
+    node.text.name = `${label}: ${data}`;
   }
 
-  for (const key in data) {
-    const li = document.createElement('li');
-    li.innerHTML = `<strong>${key}</strong>`;
-    const ul = document.createElement('ul');
-    buildTree(data[key], ul);
-    li.appendChild(ul);
-    parent.appendChild(li);
-  }
+  return node;
 }
 
-// Copy & Compare Functions
 function copyLeftToRight() {
   try {
     rightEditor.set(leftEditor.get());
@@ -97,16 +111,12 @@ function copyRightToLeft() {
     alert("Copy failed: " + err.message);
   }
 }
+
 function toggleFullscreen(editorId) {
   const editorContainer = document.getElementById(editorId).parentElement;
   const side = editorId.includes('left') ? 'left' : 'right';
-
-  // Toggle fullscreen
   editorContainer.classList.toggle("fullscreen");
-
-  // Always show Table & Tree inside fullscreen
   const show = editorContainer.classList.contains("fullscreen");
-
   document.getElementById(`${side}Table`).style.display = show ? "block" : "";
   document.getElementById(`${side}Tree`).style.display = show ? "block" : "";
 }
