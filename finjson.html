@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>🍽️ The JSON Thali – Where JSON Meets Masala</title>
+
+  <!-- CSS Libraries -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/jsoneditor@10.2.0/dist/jsoneditor.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet" />
+  <!-- Treant CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/treant-js/1.0/Treant.css">
+  <!-- Perfect Scrollbar CSS (for scroll support) -->
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/treant-js/1.0/vendor/perfect-scrollbar/perfect-scrollbar.css">
+
+
+  <style>
+    .editor-box {
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 10px;
+      background: #fff;
+    }
+
+    .json-container {
+      height: 300px;
+      margin-bottom: 10px;
+    }
+
+    .table-container,
+    .tree-container {
+      max-height: 300px;
+      overflow: auto;
+      margin-top: 10px;
+    }
+
+    .fullscreen {
+      position: fixed !important;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 9999;
+      background: #fff;
+      overflow: auto;
+      padding: 20px;
+    }
+
+    .jsoneditor-poweredBy {
+      display: none !important;
+    }
+
+    #leftTree,
+    #rightTree {
+      width: 100%;
+      min-height: 300px;
+    }
+
+    #diffOutput ins {
+      background-color: #d4fcdc;
+      text-decoration: none;
+    }
+
+    #diffOutput del {
+      background-color: #fcdada;
+      text-decoration: line-through;
+    }
+  </style>
+</head>
+
+<body class="bg-light">
+
+  <div class="container-fluid" style="background: #efdede;">
+    <!-- Top Navigation Bar -->
+   <h2>The JSON Thali</h2>
+    <!-- Buttons Row -->
+    <div class="text-center mb-3">
+      <button class="btn btn-outline-primary btn-sm mx-1" onclick="copyLeftToRight()">➡️ Copy Left ➜
+        Right</button>
+      <button class="btn btn-outline-primary btn-sm mx-1" onclick="copyRightToLeft()">⬅️ Copy Right ➜
+        Left</button>
+      <button class="btn btn-outline-warning btn-sm mx-1" onclick="compareJson()">🔍 Compare JSONs</button>
+      <div class="editor-box mt-4 position-relative" id="diffContainer" style="display:none;">
+        <button type="button" class="btn-close position-absolute top-0 end-0 m-2" aria-label="Close"
+          onclick="closeDiff()"></button>
+        <h5>🔍 JSON Comparison Result</h5>
+        <div id="diffOutput"></div>
+      </div>
+
+    </div>
+
+    <div class="row g-3 mt-1">
+      <!-- Left JSON Panel -->
+      <div class="col-md-6">
+        <div class="editor-box">
+          <div class="d-flex justify-content-between mb-2">
+            <strong>Left JSON Editor</strong>
+            <div>
+              <button onclick="clearEditor(leftEditor, 'left')" title="Clear" class="btn btn-sm btn-danger">🧹</button>
+              <button onclick="convertToTable(leftEditor, 'leftTable')" title="Table Structure"
+                class="btn btn-sm btn-success">📊</button>
+              <button onclick="convertToTreeView(leftEditor, 'left')" title="Tree Structure"
+                class="btn btn-sm btn-warning">🌳</button>
+              <button onclick="toggleFullscreen('leftEditor')" title="Full Screen"
+                class="btn btn-sm btn-secondary">🔳</button>
+            </div>
+          </div>
+          <div id="leftEditor" class="json-container"></div>
+          <div id="leftTable" class="table-container" style="display:none;"></div>
+          <div id="leftTree" class="tree-container" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- Right JSON Panel -->
+      <div class="col-md-6">
+        <div class="editor-box">
+          <div class="d-flex justify-content-between mb-2">
+            <strong>Right JSON Editor</strong>
+            <div>
+              <button onclick="clearEditor(rightEditor, 'right')" title="Clear"
+                class="btn btn-sm btn-danger">🧹</button>
+              <button onclick="convertToTable(rightEditor, 'rightTable')" title="Table Structure"
+                class="btn btn-sm btn-success">📊</button>
+              <button onclick="convertToTreeView(rightEditor, 'right')" title="Tree Structure"
+                class="btn btn-sm btn-warning">🌳</button>
+              <button onclick="toggleFullscreen('rightEditor')" title="Full Screen"
+                class="btn btn-sm btn-secondary">🔳</button>
+            </div>
+          </div>
+          <div id="rightEditor" class="json-container"></div>
+          <div id="rightTable" class="table-container" style="display:none;"></div>
+          <div id="rightTree" class="tree-container" style="display:none;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JS Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsoneditor@10.2.0/dist/jsoneditor.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
+  <!-- Load jsondiffpatch -->
+  <script src="https://cdn.jsdelivr.net/npm/jsondiffpatch/dist/jsondiffpatch.umd.js"></script>
+
+  <!-- Ensure it's globally available -->
+  <script>
+    window.jsondiffpatch = window.jsondiffpatch || jsondiffpatch;
+  </script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/raphael/2.3.0/raphael.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/treant-js/1.0/Treant.min.js"></script>
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/treant-js/1.0/vendor/perfect-scrollbar/perfect-scrollbar.min.js"></script>
+  <script>
+    const leftEditor = new JSONEditor(document.getElementById("leftEditor"), {
+      mode: "code",
+      modes: ["code", "tree", "text", "form", "view"]
+    });
+    leftEditor.setText(""); // Start with an empty editor
+
+    const rightEditor = new JSONEditor(document.getElementById("rightEditor"), {
+      mode: "code",
+      modes: ["code", "tree", "text", "form", "view"]
+    });
+    rightEditor.setText(""); // Start with an empty editor
+    function isValidJson(text) {
+      try {
+        JSON.parse(text);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+
+    function clearEditor(editor, side) {
+      editor.set({});
+      document.getElementById(`${side}Table`).style.display = "none";
+      document.getElementById(`${side}Tree`).style.display = "none";
+      document.getElementById(`${side}Tree`).innerHTML = "";
+    }
+
+    function convertToTable(editor, containerId) {
+      try {
+        const jsonData = editor.get();
+        let dataArray = [];
+
+        if (Array.isArray(jsonData)) {
+          dataArray = jsonData;
+        } else if (typeof jsonData === 'object') {
+          dataArray = [flattenObject(jsonData)];
+        }
+
+        const container = document.getElementById(containerId);
+        container.style.display = "block";
+        container.innerHTML = "";
+
+        new Tabulator(`#${containerId}`, {
+          data: dataArray,
+          layout: "fitData",
+          responsiveLayout: "collapse",
+          columns: Object.keys(dataArray[0] || {}).map(key => ({
+            title: key,
+            field: key
+          }))
+        });
+      } catch (err) {
+        alert("Table conversion failed: " + err.message);
+      }
+    }
+
+    function flattenObject(obj, prefix = '') {
+      return Object.keys(obj).reduce((acc, k) => {
+        const pre = prefix.length ? prefix + '.' : '';
+        if (typeof obj[k] === 'object' && obj[k] !== null && !Array.isArray(obj[k])) {
+          Object.assign(acc, flattenObject(obj[k], pre + k));
+        } else {
+          acc[pre + k] = Array.isArray(obj[k]) ? obj[k].join(',') : obj[k];
+        }
+        return acc;
+      }, {});
+    }
+
+    function convertToTreeView(editor, side) {
+      try {
+        const jsonData = editor.get();
+        const container = document.getElementById(`${side}Tree`);
+        container.innerHTML = "";
+        container.style.display = "block";
+
+        const nodeStructure = jsonToTreant(jsonData);
+
+        new Treant({
+          chart: {
+            container: `#${side}Tree`,
+            scrollbar: "fancy",
+            node: { collapsable: true }
+          },
+          nodeStructure: nodeStructure
+        });
+      } catch (err) {
+        alert("Tree conversion failed: " + err.message);
+      }
+    }
+
+    function jsonToTreant(data, label = "Root") {
+      const node = { text: { name: label } };
+
+      if (typeof data === "object" && data !== null) {
+        node.children = [];
+
+        for (let key in data) {
+          const child = jsonToTreant(data[key], key);
+          node.children.push(child);
+        }
+
+        if (node.children.length === 0) delete node.children;
+      } else {
+        node.text.name = `${label}: ${data}`;
+      }
+
+      return node;
+    }
+
+    function copyLeftToRight() {
+      try {
+        rightEditor.set(leftEditor.get());
+      } catch (err) {
+        alert("Copy failed: " + err.message);
+      }
+    }
+
+    function copyRightToLeft() {
+      try {
+        leftEditor.set(rightEditor.get());
+      } catch (err) {
+        alert("Copy failed: " + err.message);
+      }
+    }
+
+    function toggleFullscreen(editorId) {
+      const editorContainer = document.getElementById(editorId).parentElement;
+      const side = editorId.includes('left') ? 'left' : 'right';
+      editorContainer.classList.toggle("fullscreen");
+      const show = editorContainer.classList.contains("fullscreen");
+      document.getElementById(`${side}Table`).style.display = show ? "block" : "";
+      document.getElementById(`${side}Tree`).style.display = show ? "block" : "";
+    }
+
+    function compareJson() {
+  const leftText = leftEditor.getText();
+  const rightText = rightEditor.getText();
+
+  const container = document.getElementById("diffContainer");
+  const output = document.getElementById("diffOutput");
+
+  container.style.display = "block";
+
+  const isLeftJson = isValidJson(leftText);
+  const isRightJson = isValidJson(rightText);
+
+  if (isLeftJson && isRightJson) {
+    const left = JSON.parse(leftText);
+    const right = JSON.parse(rightText);
+    const delta = jsondiffpatch.diff(left, right);
+
+    if (!delta) {
+      output.innerHTML = `<div class='alert alert-success'>Both JSONs are identical.</div>`;
+      return;
+    }
+
+    const differences = [];
+    function extractDifferences(obj, path = []) {
+      for (const key in obj) {
+        const currentPath = [...path, key];
+        const value = obj[key];
+
+        if (Array.isArray(value) && value.length === 2) {
+          differences.push({
+            path: currentPath.join('.'),
+            left: JSON.stringify(value[0]),
+            right: JSON.stringify(value[1])
+          });
+        } else if (typeof value === 'object' && value !== null) {
+          extractDifferences(value, currentPath);
+        }
+      }
+    }
+
+    extractDifferences(delta);
+
+    const tableHtml = `
+      <table class="table table-bordered table-sm table-hover">
+        <thead class="table-light">
+          <tr>
+            <th>🔑 Key Path</th>
+            <th>📋 Left JSON</th>
+            <th>📋 Right JSON</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${differences.map(diff => `
+            <tr>
+              <td><code>${diff.path}</code></td>
+              <td class="bg-danger-subtle">${diff.left}</td>
+              <td class="bg-success-subtle">${diff.right}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    output.innerHTML = tableHtml;
+  } else {
+    // Plain text comparison
+    const leftLines = leftText.split(/\r?\n/);
+    const rightLines = rightText.split(/\r?\n/);
+    const maxLength = Math.max(leftLines.length, rightLines.length);
+
+    let diffHtml = `<table class="table table-bordered table-sm table-hover">
+      <thead class="table-light">
+        <tr>
+          <th>📋 Left Text</th>
+          <th>📋 Right Text</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+    for (let i = 0; i < maxLength; i++) {
+      const leftLine = leftLines[i] || "";
+      const rightLine = rightLines[i] || "";
+      const isDifferent = leftLine !== rightLine;
+
+      diffHtml += `
+        <tr class="${isDifferent ? 'table-warning' : ''}">
+          <td>${leftLine}</td>
+          <td>${rightLine}</td>
+        </tr>`;
+    }
+
+    diffHtml += `</tbody></table>`;
+    output.innerHTML = diffHtml;
+  }
+}
+
+    function closeDiff() {
+      const container = document.getElementById("diffContainer");
+      const output = document.getElementById("diffOutput");
+      container.style.display = "none";
+      output.innerHTML = "";
+    }
+
+  </script>
+</body>
+
+</html>
