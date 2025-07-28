@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AOH Tree Top-Down View</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      font-family: "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+    .navbar {
+      z-index: 999;
+    }
+    svg {
+      width: 100vw;
+      height: calc(100vh - 56px);
+    }
+    .node circle {
+      fill: #0d6efd;
+    }
+    .node.odd circle {
+      fill: #6f42c1;
+    }
+    .link {
+      fill: none;
+      stroke: #ccc;
+      stroke-width: 1.5px;
+    }
+    #tooltip {
+      position: absolute;
+      display: none;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 10px;
+      font-size: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      border-radius: 6px;
+      z-index: 1000;
+      max-width: 450px;
+      max-height: 300px;
+      overflow-y: auto;
+      font-family: monospace;
+    }
+    #tooltip table {
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+    }
+    #tooltip td, #tooltip th {
+      padding: 4px 8px;
+      border-bottom: 1px solid #eee;
+    }
+    #tooltip th {
+      background: #f8f9fa;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-dark bg-dark">
+    <div class="container-fluid">
+      <button onclick="goBack()" class="btn btn-outline-light me-2">← Back</button>
+      <span class="navbar-brand">AOH Tree View (Top-Down)</span>
+      <form class="d-flex ms-auto" onsubmit="return false;">
+        <input class="form-control" id="searchInput" type="search" placeholder="Search ID..." />
+      </form>
+    </div>
+  </nav>
+  <svg></svg>
+  <div id="tooltip"></div>
+
+  <script>
+    function goBack() {
+      if (document.referrer && document.referrer !== window.location.href) {
+        window.history.back();
+      } else {
+        window.location.href = "index.html"; // fallback if no history
+      }
+    }
+
+    const raw = localStorage.getItem("aoh_json");
+    if (!raw) {
+      alert("No JSON found in localStorage!");
+      throw new Error("Missing data");
+    }
+
+    const rawData = JSON.parse(raw);
+
+    const normalizeItems = (items) =>
+      items.map((item) => ({
+        name: `ID: ${item.id}`,
+        raw: item,
+        children: Array.isArray(item.productOrderItem) ? normalizeItems(item.productOrderItem) : [],
+      }));
+
+    const rootData = {
+      name: "All Orders",
+      children: rawData.map((order) => ({
+        name: `Order ID: ${order.id}`,
+        raw: order,
+        children: Array.isArray(order.productOrderItem)
+          ? normalizeItems(order.productOrderItem)
+          : [],
+      })),
+    };
+    const svg = d3.select("svg");
+    const width = window.innerWidth;
+    const height = window.innerHeight - 56;
+
+    const g = svg.append("g").attr("transform", "translate(40,40)");
+
+    const zoom = d3.zoom().scaleExtent([0.3, 2]).on("zoom", (event) => g.attr("transform", event.transform));
+    svg.call(zoom);
+
+    const treeLayout = d3.tree().nodeSize([240, 40]); // vertical layout: x = width, y = height
+    const root = d3.hierarchy(rootData, (d) => d.children);
+    root.x0 = width / 2;
+    root.y0 = 0;
+    let i = 0;
+
+    // Collapse all children initially
+    root.children?.forEach(collapseNode);
+    function collapseNode(d) {
+      if (d.children) {
+        d._children = d.children;
+        d._children.forEach(collapseNode);
+        d.children = null;
+      }
+    }
+
+    const tooltip = d3.select("#tooltip");
+
+    function update(source) {
+      const treeData = treeLayout(root);
+      const nodes = treeData.descendants();
+      const links = treeData.links();
+
+      nodes.forEach((d) => (d.y = d.depth * 100)); // top-to-bottom vertical spacing
+
+      const node = g.selectAll("g.node").data(nodes, (d) => d.id || (d.id = ++i));
+
+      const nodeEnter = node.enter()
+        .append("g")
+        .attr("class", (d, i) => `node ${i % 2 === 0 ? "even" : "odd"}`)
+        .attr("transform", (d) => `translate(${source.x0},${source.y0})`)
+        .on("click", (event, d) => {
+          d.children = d.children ? null : d._children;
+          update(d);
+          event.stopPropagation();
+
+          const raw = d.data.raw || {};
+          const rows = Object.entries(raw).map(([k, v]) => {
+            const val = typeof v === "object" ? JSON.stringify(v) : v;
+            return `<tr><td><strong>${k}</strong></td><td>${val}</td></tr>`;
+          }).join("");
+
+          tooltip
+            .html(`<table><tr><th colspan="2">${d.data.name}</th></tr>${rows}</table>`)
+            .style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY + 10) + "px")
+            .style("display", "block");
+        });
+
+      d3.select("body").on("click", (event) => {
+        if (!event.target.closest("#tooltip")) {
+          tooltip.style("display", "none");
+        }
+      });
+
+      nodeEnter.append("circle")
+        .attr("r", 6);
+
+      nodeEnter.select("circle")
+        .append("title")
+        .text(d => d.data.name);
+
+      nodeEnter.append("text")
+        .attr("dy", "-1.2em")
+        .attr("x", 0)
+        .attr("text-anchor", "middle")
+        .text(() => "ID")
+        .append("title")
+        .text((d) => d.data.name);
+      const nodeUpdate = nodeEnter.merge(node);
+      nodeUpdate.transition().duration(300).attr("transform", (d) => `translate(${d.x},${d.y})`);
+      nodeUpdate.select("circle").attr("r", 6);
+
+      const nodeExit = node.exit().transition().duration(200).attr("transform", (d) => `translate(${source.x},${source.y})`).remove();
+      nodeExit.select("circle").attr("r", 1e-6);
+      nodeExit.select("text").style("fill-opacity", 1e-6);
+
+      const link = g.selectAll("path.link").data(links, (d) => d.target.id);
+      const linkEnter = link.enter().insert("path", "g")
+        .attr("class", "link")
+        .attr("d", (d) => {
+          const o = { x: source.x0, y: source.y0 };
+          return diagonal(o, o);
+        });
+
+      linkEnter.merge(link).transition().duration(300).attr("d", (d) => diagonal(d.source, d.target));
+      link.exit().transition().duration(200).attr("d", (d) => diagonal(d.source, d.source)).remove();
+
+      nodes.forEach((d) => {
+        d.x0 = d.x;
+        d.y0 = d.y;
+      });
+    }
+
+    function diagonal(s, d) {
+      return `M ${s.x} ${s.y}
+              C ${s.x} ${(s.y + d.y) / 2},
+                ${d.x} ${(s.y + d.y) / 2},
+                ${d.x} ${d.y}`;
+    }
+
+    update(root);
+
+    document.getElementById("searchInput").addEventListener("input", function () {
+      const query = this.value.toLowerCase();
+      d3.selectAll("g.node text").each(function (d) {
+        const match = d.data.name.toLowerCase().includes(query);
+        d3.select(this).style("fill", match ? "#dc3545" : "#111");
+      });
+    });
+  </script>
+</body>
+</html>
