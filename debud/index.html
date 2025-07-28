@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AOH JSON Tree Table</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+  <!-- Tabulator CSS -->
+  <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator.min.css" rel="stylesheet">
+
+ <style>
+  .fullscreen {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 9999;
+    background: white;
+    padding: 10px;
+    overflow: auto;
+  }
+  #editor.fullscreen-editor {
+    height: calc(100vh - 120px) !important;
+  }
+  #example-table.fullscreen-table {
+    height: calc(100vh - 120px) !important;
+  }
+</style>
+
+</head>
+<body class="container py-4">
+
+  <h2 class="mb-3">📦 AOH JSON ➜ Tree Table Viewer</h2>
+
+  <!-- JSON Editor Wrapper -->
+  <div id="editor-wrapper" class="mb-3 border rounded p-2 bg-light position-relative">
+
+    <div class="d-flex gap-2 mb-2">
+      <button class="btn btn-secondary btn-sm" onclick="prettyJson()"><i class="bi bi-braces-asterisk"></i> Pretty</button>
+      <button class="btn btn-secondary btn-sm" onclick="minifyJson()"><i class="bi bi-file-code"></i> Minify</button>
+      <button class="btn btn-secondary btn-sm" onclick="toggleEditorFullscreen()"><i class="bi bi-arrows-fullscreen"></i> Fullscreen</button>
+      <button class="btn btn-danger btn-sm" onclick="clearEditor()"><i class="bi bi-x-circle"></i> Clear</button>
+    </div>
+
+    <div id="editor" style="height: 300px;"></div>
+  </div>
+
+  <button class="btn btn-primary mt-3" onclick="renderTable()">Convert to Tree Table</button>
+  <button class="btn btn-outline-dark mt-3" onclick="openTreeView()">🌳 View Tree Hierarchy</button>
+
+
+  <!-- Table Wrapper -->
+  <!-- Table Controls -->
+<div id="table-wrapper" class="mt-4 d-none border rounded p-2 bg-light position-relative">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="mb-0">Rendered Tree Table</h5>
+    <div class="d-flex gap-2 align-items-center">
+      <input id="globalFilter" type="text" class="form-control form-control-sm" placeholder="🔍 Global Search..." style="width: 200px;">
+      <button class="btn btn-outline-secondary btn-sm" onclick="toggleTableFullscreen()">
+        <i class="bi bi-arrows-fullscreen"></i> Fullscreen
+      </button>
+    </div>
+  </div>
+  <div id="example-table"></div>
+</div>
+
+
+
+
+
+  <!-- Dependencies -->
+  <script src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.14/ace.js"></script>
+<script>
+  // Initialize Ace Editor
+  const editor = ace.edit("editor", {
+    mode: "ace/mode/json",
+    theme: "ace/theme/github",
+    wrap: true,
+    fontSize: "14px"
+  });
+
+  let table; // Tabulator instance
+
+  function renderTable() {
+    try {
+      const rawData = JSON.parse(editor.getValue());
+      const allOrderItems = [];
+
+      const normalizeItems = (items) => {
+        return items.map(item => {
+          const productName = item.product?.name || "";
+          const offeringName = item.productOffering?.name || "";
+          const children = item.productOrderItem ? normalizeItems(item.productOrderItem) : [];
+          return {
+            id: item.id,
+            action: item.action,
+            state: item.state,
+            product: productName,
+            offering: offeringName,
+            children: children
+          };
+        });
+      };
+
+      rawData.forEach(order => {
+        if (order.productOrderItem && Array.isArray(order.productOrderItem)) {
+          const normalized = normalizeItems(order.productOrderItem);
+          allOrderItems.push(...normalized);
+        }
+      });
+
+      if (table) table.destroy();
+
+      document.getElementById("table-wrapper").classList.remove("d-none");
+
+      // Initialize Tabulator
+      table = new Tabulator("#example-table", {
+        data: allOrderItems,
+        layout: "fitColumns",
+        height: "600px",
+        dataTree: true,
+        dataTreeChildField: "children",
+        dataTreeStartExpanded: false,
+        headerFilterPlaceholder: "Filter...",
+        columns: [
+          { title: "ID", field: "id", width: 300, headerFilter: "input" },
+          { title: "Action", field: "action", width: 100, headerFilter: "input" },
+          { title: "State", field: "state", width: 100, headerFilter: "input" },
+          { title: "Product", field: "product", widthGrow: 2, headerFilter: "input" },
+          { title: "Offering", field: "offering", widthGrow: 2, headerFilter: "input" }
+        ]
+      });
+
+      // Global search logic
+      document.getElementById("globalFilter").addEventListener("keyup", function () {
+        const val = this.value.toLowerCase();
+        table.setFilter((data, filterParams) => {
+          return Object.values(data).some(valItem =>
+            String(valItem).toLowerCase().includes(val)
+          );
+        });
+      });
+
+    } catch (err) {
+      alert("❌ Invalid JSON: " + err.message);
+    }
+  }
+  function openTreeView() {
+  try {
+    const json = JSON.parse(editor.getValue());
+    localStorage.setItem("aoh_json", JSON.stringify(json));
+    window.open("tree.html", "_blank");
+  } catch {
+    alert("Invalid JSON. Cannot open tree view.");
+  }
+}
+
+  // Pretty-print JSON
+  function prettyJson() {
+    try {
+      const val = editor.getValue();
+      editor.setValue(JSON.stringify(JSON.parse(val), null, 2), -1);
+    } catch {
+      alert("❌ Invalid JSON, cannot pretty print.");
+    }
+  }
+
+  // Minify JSON
+  function minifyJson() {
+    try {
+      const val = editor.getValue();
+      editor.setValue(JSON.stringify(JSON.parse(val)), -1);
+    } catch {
+      alert("❌ Invalid JSON, cannot minify.");
+    }
+  }
+
+  // Toggle fullscreen for JSON editor
+  function toggleEditorFullscreen() {
+    const wrapper = document.getElementById("editor-wrapper");
+    const editorDiv = document.getElementById("editor");
+    wrapper.classList.toggle("fullscreen");
+    editorDiv.classList.toggle("fullscreen-editor");
+    editor.resize();
+  }
+
+  // Toggle fullscreen for Tabulator table
+  function toggleTableFullscreen() {
+    const wrapper = document.getElementById("table-wrapper");
+    const tableDiv = document.getElementById("example-table");
+    wrapper.classList.toggle("fullscreen");
+    tableDiv.classList.toggle("fullscreen-table");
+    if (table) table.redraw(true);
+  }
+
+  // Clear editor and hide table
+  function clearEditor() {
+    editor.setValue("", -1);
+    document.getElementById("table-wrapper").classList.add("d-none");
+    document.getElementById("globalFilter").value = "";
+  }
+</script>
+
+</body>
+</html>
